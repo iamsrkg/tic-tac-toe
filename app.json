@@ -1,4 +1,25 @@
 {
-  "name": "ReactNativeTicTacToe",
-  "displayName": "ReactNativeTicTacToe"
+  "expo": {
+    "name": "Tic-Tac-Toe Live",
+    "slug": "tic-tac-toe",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "io.github.iamsrkg.tictactoe"
+    },
+    "android": {
+      "package": "io.github.iamsrkg.tictactoe"
+    },
+    "web": {
+      "output": "single",
+      "bundler": "metro"
+    },
+    "experiments": {
+      "baseUrl": "/tic-tac-toe"
+    },
+    "plugins": [
+      "expo-status-bar"
+    ]
+  }
 }

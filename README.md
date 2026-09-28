@@ -1,24 +1,42 @@
-# Multiplayer Tic-Tac-Toe (React Native + PubNub)
+# Tic-Tac-Toe Live: real-time multiplayer (React Native + PubNub)
 
-Two-player Tic-Tac-Toe for Android and iOS. One player creates a room, the other joins with the room code, and every move is published over **PubNub** so both boards stay in sync in real time.
+**Play it: https://iamsrkg.github.io/tic-tac-toe/** (open it on two devices or in two tabs)
 
-<img src="./media/android-ios-game.png" alt="Android and iOS screenshots of the game" width="410" height="410" />
+Two players on different devices play the same board in real time. One creates a room and shares the 5-character code, and the other joins. Moves, rematches and "the other player left" all travel over **PubNub pub/sub**. It's one codebase for **Android, iOS and the web**.
+
+<img src="./media/android-ios-game.png" alt="The game running on Android and iOS" width="360" />
 
 ## How it works
 
-- **Lobby** (`App.js`, `src/components/Lobby.js`): the creator gets a 5-character room ID (`shortid`) and plays X. Player names are announced on a shared `gameLobby` channel.
-- **Joining:** before subscribing, the joiner checks the room channel's occupancy with PubNub `hereNow`. An empty room means "create one first", and more than 2 players means "room full".
-- **Moves:** each game uses its own channel (`tictactoe--<roomId>`). A move is published as `{ piece, row, col, turn }`, and the opponent's client applies it to its own board.
-- **Game** (`src/components/Game.js`): turn handling, win detection across the 8 lines, draws and a running X/O score. The room creator decides on a rematch (`reset`) or ends the game (`gameOver`).
+Each room is its own PubNub channel (`iamsrkg-tictactoe.<CODE>`). The protocol is 5 messages:
 
-## Status: legacy (2019)
+| Message | Sent by | Meaning |
+|---|---|---|
+| `{ type: 'join', name }` | guest | "I'm here." |
+| `{ type: 'start', x, o }` | host | Names confirmed, round starts (the host plays X) |
+| `{ type: 'move', index, piece }` | either | A move. The receiver re-validates it before applying it. |
+| `{ type: 'reset' }` / `{ type: 'end' }` | host | Rematch, or close the room |
 
-Built with **React Native 0.59** and React 16.8. The code is kept as it was written. Modern Android/iOS and Node toolchains **won't build RN 0.59 as-is**. Running it today means upgrading React Native (or porting to Expo), which hasn't been done.
+- **Presence** tells players about the room: joining checks `hereNow` (0 = no such room, 1 = host waiting, 2 = full), and a `leave` or `timeout` event tells a player their opponent left.
+- **The rules are pure functions** (`src/game.js`) with unit tests: win and draw detection, turn order, legal moves and room codes. Both clients apply and validate every move with the same rules, so a stray or out-of-turn message can't corrupt the board.
 
-## Running it (on a 2019-era toolchain)
+## History: 2019 → 2026
+It was first built in 2019 on React Native 0.59 with `pubnub-react`. In 2026 I upgraded it to **Expo SDK 57 / React Native 0.86 / React 19** and fixed 3 bugs along the way:
+- **Joining never worked.** The occupancy check treated "host waiting" (1 player) as an empty room.
+- **A win on the 9th move** was counted as a win *and* a draw.
+- **The lobby used one global channel**, so unrelated games could interfere. Each room now has its own channel.
 
-1. Create a free PubNub app and copy its keys.
-2. In `App.js`, replace `ENTER_YOUR_PUBLISH_KEY_HERE` and `ENTER_YOUR_SUBSCRIBE_KEY_HERE`.
-3. `npm install`, then `react-native run-android` or `react-native run-ios`.
+The Android-only prompt and native spinner were also replaced with cross-platform components, which is what made the web build possible.
 
-Never commit real PubNub keys. For anything beyond local testing, load them from config that isn't in git.
+## Run it
+```bash
+npm install
+npm run web        # or: npm run android / npm run ios (Expo Go or a dev build)
+npm test           # game-rule unit tests
+```
+It uses PubNub's public `demo` keyset by default. For your own deployment, create free keys at pubnub.com and set `EXPO_PUBLIC_PUBNUB_PUBLISH_KEY` / `EXPO_PUBLIC_PUBNUB_SUBSCRIBE_KEY`.
+
+Every push to `master` runs the tests, exports the web build and deploys it to GitHub Pages (`.github/workflows/deploy.yml`).
+
+## Stack
+React Native 0.86 · Expo SDK 57 · React 19 · react-native-web · PubNub (pub/sub + presence) · Node test runner

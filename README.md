@@ -17,6 +17,32 @@ Each room is its own PubNub channel (`iamsrkg-tictactoe.<CODE>`). The protocol i
 | `{ type: 'move', index, piece }` | either | A move. The receiver re-validates it before applying it. |
 | `{ type: 'reset' }` / `{ type: 'end' }` | host | Rematch, or close the room |
 
+One game, from room code to rematch:
+
+```mermaid
+sequenceDiagram
+    participant H as Host (X)
+    participant P as PubNub channel for the room
+    participant G as Guest (O)
+
+    H->>P: subscribe (creates the room, shows the code)
+    G->>P: hereNow: is someone waiting?
+    P-->>G: 1 player, so the room exists and has space
+    G->>P: subscribe, then publish join
+    P-->>H: join
+    H->>P: start (names, host plays X)
+    P-->>G: start
+    loop until someone wins or the board is full
+        H->>P: move
+        P-->>G: move (checked against the rules, then applied)
+        G->>P: move
+        P-->>H: move (checked against the rules, then applied)
+    end
+    H->>P: reset (rematch) or end (close the room)
+    P-->>G: reset or end
+    Note over H,G: If either player closes the tab, presence sends the other a leave event
+```
+
 - **Presence** tells players about the room: joining checks `hereNow` (0 = no such room, 1 = host waiting, 2 = full), and a `leave` or `timeout` event tells a player their opponent left.
 - **The rules are pure functions** (`src/game.js`) with unit tests: win and draw detection, turn order, legal moves and room codes. Both clients apply and validate every move with the same rules, so a stray or out-of-turn message can't corrupt the board.
 
